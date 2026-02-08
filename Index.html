@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>드라이빙 게임</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+```
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(to bottom, #87CEEB 0%, #98D8E8 100%);
+        font-family: 'Arial', sans-serif;
+    }
+
+    #gameContainer {
+        position: relative;
+        background: #333;
+        box-shadow: 0 10px 50px rgba(0,0,0,0.3);
+    }
+
+    canvas {
+        display: block;
+        background: #87CEEB;
+    }
+
+    #ui {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        font-size: 24px;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        z-index: 10;
+    }
+
+    #gameOver {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.9);
+        color: white;
+        padding: 40px;
+        border-radius: 20px;
+        text-align: center;
+        display: none;
+        z-index: 20;
+    }
+
+    #gameOver h2 {
+        font-size: 48px;
+        margin-bottom: 20px;
+        color: #ff4444;
+    }
+
+    #gameOver p {
+        font-size: 24px;
+        margin: 10px 0;
+    }
+
+    #gameOver button {
+        margin-top: 20px;
+        padding: 15px 40px;
+        font-size: 20px;
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+
+    #gameOver button:hover {
+        background: #45a049;
+    }
+
+    #difficultySelect {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.9);
+        color: white;
+        padding: 40px;
+        border-radius: 20px;
+        text-align: center;
+        z-index: 30;
+    }
+
+    #difficultySelect h2 {
+        font-size: 36px;
+        margin-bottom: 30px;
+        color: #4CAF50;
+    }
+
+    .difficulty-btn {
+        display: block;
+        width: 100%;
+        margin: 15px 0;
+        padding: 20px 40px;
+        font-size: 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .difficulty-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .difficulty-btn.easy {
+        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    }
+
+    .difficulty-btn.medium {
+        background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+    }
+
+    .difficulty-btn.hard {
+        background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+    }
+
+    .difficulty-desc {
+        font-size: 14px;
+        opacity: 0.8;
+        margin-top: 5px;
+    }
+
+    #turnIndicator {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 72px;
+        font-weight: bold;
+        color: #ffff00;
+        text-shadow: 
+            0 0 10px rgba(255, 255, 0, 0.8),
+            0 0 20px rgba(255, 255, 0, 0.6),
+            0 0 30px rgba(255, 255, 0, 0.4),
+            3px 3px 6px rgba(0, 0, 0, 0.8);
+        display: none;
+        z-index: 15;
+        animation: blink 0.5s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+
+    #instructions {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: white;
+        text-align: center;
+        font-size: 16px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    }
+
+    #controls {
+        position: absolute;
+        bottom: 30px;
+        width: 100%;
+        display: flex;
+        justify-content: space-around;
+        padding: 0 20px;
+        z-index: 10;
+    }
+
+    .control-btn {
+        width: 80px;
+        height: 80px;
+        background: rgba(255, 255, 255, 0.3);
+        border: 3px solid white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+        color: white;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
+        cursor: pointer;
+    }
+
+    .control-btn:active {
+        background: rgba(255, 255, 255, 0.5);
+        transform: scale(0.95);
+    }
+</style>
+```
+
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        <div id="ui">
+            <div>점수: <span id="score">0</span></div>
+            <div>속도: <span id="speed">0</span> km/h</div>
+            <div id="difficultyLabel" style="font-size: 16px; margin-top: 5px;"></div>
+            <div id="timeLabel" style="font-size: 16px;"></div>
+            <div id="locationLabel" style="font-size: 16px;"></div>
+        </div>
+        <div id="difficultySelect">
+            <h2>난이도 선택</h2>
+            <button class="difficulty-btn easy" onclick="startGame('easy')">
+                🟢 쉬움
+                <div class="difficulty-desc">천천히 + 가끔 회전</div>
+            </button>
+            <button class="difficulty-btn medium" onclick="startGame('medium')">
+                🟡 보통
+                <div class="difficulty-desc">빠른 속도 + 자주 회전</div>
+            </button>
+            <button class="difficulty-btn hard" onclick="startGame('hard')">
+                🔴 어려움
+                <div class="difficulty-desc">초고속 + 연속 회전</div>
+            </button>
+        </div>
+        <div id="turnIndicator"></div>
+        <div id="gameOver">
+            <h2>게임 오버!</h2>
+            <p>난이도: <span id="finalDifficulty">-</span></p>
+            <p>최종 점수: <span id="finalScore">0</span></p>
+            <p>최고 속도: <span id="maxSpeed">0</span> km/h</p>
+            <button onclick="showDifficultySelect()">다시 시작</button>
+        </div>
+        <div id="controls">
+            <div class="control-btn" id="leftBtn">◀</div>
+            <div class="control-btn" id="rightBtn">▶</div>
+        </div>
+        <div id="instructions">
+            터치 버튼으로 조작 | 🟢 초록차는 보너스! | 빨간차는 피하세요!
+        </div>
+    </div>
+
+```
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // 게임 상태
+    let gameState = {
+        running: false,
+        score: 0,
+        speed: 60,
+        maxSpeed: 60,
+        difficulty: null,
+        roadOffset: 0,
+        isTurning: false,
+        turnDirection: null,
+        turnProgress: 0,
+        turnDuration: 180,
+        turnTimer: 0,
+        turnInterval: 300,
+        horizontalScroll: 0,
+        timeOfDay: 'day',
+        location: 'city'
+    };
+
+    // 시간대 설정
+    const timeEnvironments = {
+        day: {
+            name: '☀️ 낮',
+            skyTop: '#87CEEB',
+            skyBottom: '#B0E2FF',
+            stars: false
+        },
+        sunset: {
+            name: '🌆 저녁',
+            skyTop: '#FF6B35',
+            skyBottom: '#F7931E',
+            stars: false
+        },
+        night: {
+            name: '🌙 밤',
+            skyTop: '#0a0a2e',
+            skyBottom: '#1a1a4e',
+            stars: true
+        }
+    };
+
+    // 장소별 환경 설정
+    const locations = {
+        city: {
+            name: '🏙️ 도시',
+            ground: '#555',
+            roadColor: '#2a2a2a',
+            sideColor: '#666',
+            decoration: 'buildings'
+        },
+        beach: {
+            name: '🏖️ 해변',
+            ground: '#F4A460',
+            roadColor: '#3a3a3a',
+            sideColor: '#C2B280',
+            decoration: 'palm'
+        },
+        mountain: {
+            name: '⛰️ 산',
+            ground: '#8B7355',
+            roadColor: '#444',
+            sideColor: '#2d5016',
+            decoration: 'pine'
+        },
+        countryside: {
+            name: '🌾 시골',
+            ground: '#9ACD32',
+            roadColor: '#3a3a3a',
+            sideColor: '#7CFC00',
+            decoration: 'flowers'
+        }
+    };
+
+    // 난이도 설정
+    const difficultySettings = {
+        easy: {
+            name: '쉬움',
+            baseSpeed: 60,
+            speedIncrease: 3,
+            obstacleInterval: 120,
+            hasTurns: true,
+            turnInterval: 500
+        },
+        medium: {
+            name: '보통',
+            baseSpeed: 80,
+            speedIncrease: 5,
+            obstacleInterval: 80,
+            hasTurns: true,
+            turnInterval: 350
+        },
+        hard: {
+            name: '어려움',
+            baseSpeed: 100,
+            speedIncrease: 7,
+            obstacleInterval: 60,
+            hasTurns: true,
+            turnInterval: 250
+        }
+    };
+
+    const player = {
+        x: canvas.width / 2 - 25,
+        y: canvas.height - 120,
+        width: 50,
+        height: 80,
+        speed: 5,
+        color: '#ff4444'
+    };
+
+    let obstacles = [];
+    let obstacleTimer = 0;
+
+    const keys = {
+        left: false,
+        right: false
+    };
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') keys.left = true;
+        if (e.key === 'ArrowRight') keys.right = true;
+    });
+
+    document.addEventListener('keyup', (e) => {
+        if (e.key === 'ArrowLeft') keys.left = false;
+        if (e.key === 'ArrowRight') keys.right = false;
+    });
+
+    const leftBtn = document.getElementById('leftBtn');
+    const rightBtn = document.getElementById('rightBtn');
+
+    leftBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        keys.left = true;
+    });
+    leftBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        keys.left = false;
+    });
+    leftBtn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        keys.left = true;
+    });
+    leftBtn.addEventListener('mouseup', (e) => {
+        e.preventDefault();
+        keys.left = false;
+    });
+
+    rightBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        keys.right = true;
+    });
+    rightBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        keys.right = false;
+    });
+    rightBtn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        keys.right = true;
+    });
+    rightBtn.addEventListener('mouseup', (e) => {
+        e.preventDefault();
+        keys.right = false;
+    });
+
+    leftBtn.addEventListener('touchcancel', () => keys.left = false);
+    rightBtn.addEventListener('touchcancel', () => keys.right = false);
+
+    // 시간대 업데이트
+    function updateTimeOfDay() {
+        if (gameState.score >= 100 && gameState.timeOfDay === 'day') {
+            gameState.timeOfDay = 'sunset';
+            showNotification('🌆 저녁이 되었습니다!');
+        } else if (gameState.score >= 200 && gameState.timeOfDay === 'sunset') {
+            gameState.timeOfDay = 'night';
+            showNotification('🌙 밤이 되었습니다!');
+        }
+    }
+
+    // 장소 업데이트
+    function updateLocation() {
+        const locationOrder = ['city', 'beach', 'mountain', 'countryside'];
+        const currentIndex = locationOrder.indexOf(gameState.location);
+        
+        // 300점마다 장소 변경
+        const locationScore = Math.floor(gameState.score / 300);
+        const newIndex = locationScore % locationOrder.length;
+        
+        if (newIndex !== currentIndex) {
+            gameState.location = locationOrder[newIndex];
+            showNotification(locations[gameState.location].name + ' 도착!');
+        }
+    }
+
+    // 알림 표시
+    function showNotification(message) {
+        const indicator = document.getElementById('turnIndicator');
+        const originalText = indicator.textContent;
+        const originalDisplay = indicator.style.display;
+        
+        indicator.textContent = message;
+        indicator.style.display = 'block';
+        
+        setTimeout(() => {
+            if (indicator.textContent === message) {
+                indicator.style.display = 'none';
+            }
+        }, 2000);
+    }
+
+    // 별 그리기
+    function drawStars() {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        for (let i = 0; i < 50; i++) {
+            const x = (i * 73) % canvas.width;
+            const y = (i * 47) % (canvas.height / 2);
+            const size = 1 + (i % 3);
+            const twinkle = Math.sin(Date.now() / 500 + i) * 0.5 + 0.5;
+            ctx.globalAlpha = twinkle;
+            ctx.fillRect(x, y, size, size);
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // 달 그리기
+    function drawMoon() {
+        ctx.fillStyle = '#FFF8DC';
+        ctx.beginPath();
+        ctx.arc(canvas.width - 80, 80, 30, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // 태양 그리기
+    function drawSun() {
+        const timeEnv = timeEnvironments[gameState.timeOfDay];
+        const sunColor = gameState.timeOfDay === 'day' ? '#FFD700' : '#FF6347';
+        const sunY = gameState.timeOfDay === 'day' ? 70 : 100;
+        
+        ctx.fillStyle = sunColor;
+        ctx.beginPath();
+        ctx.arc(canvas.width - 80, sunY, 35, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // 구름 그리기
+    function drawCloud(x, y) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.beginPath();
+        ctx.arc(x, y, 20, 0, Math.PI * 2);
+        ctx.arc(x + 20, y, 25, 0, Math.PI * 2);
+        ctx.arc(x + 40, y, 20, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // 장소별 장식물 그리기
+    function drawDecoration(x, y, size, type) {
+        const loc = locations[gameState.location];
+        
+        if (type === 'buildings') {
+            // 빌딩
+            ctx.fillStyle = '#444';
+            ctx.fillRect(x - size * 0.3, y - size * 1.5, size * 0.6, size * 1.5);
+            ctx.fillStyle = '#FFD700';
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 2; j++) {
+                    ctx.fillRect(x - size * 0.2 + j * size * 0.25, y - size * 1.3 + i * size * 0.4, size * 0.15, size * 0.15);
+                }
+            }
+        } else if (type === 'palm') {
+            // 야자수
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(x - size * 0.1, y - size * 0.5, size * 0.2, size * 0.8);
+            ctx.fillStyle = '#228B22';
+            for (let i = 0; i < 5; i++) {
+                const angle = (i * 72) * Math.PI / 180;
+                ctx.beginPath();
+                ctx.ellipse(x + Math.cos(angle) * size * 0.4, y - size * 0.5 + Math.sin(angle) * size * 0.4, size * 0.3, size * 0.15, angle, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else if (type === 'pine') {
+            // 소나무
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(x - size * 0.1, y, size * 0.2, size * 0.5);
+            ctx.fillStyle = '#2d5016';
+            ctx.beginPath();
+            ctx.moveTo(x, y - size * 0.8);
+            ctx.lineTo(x - size * 0.4, y);
+            ctx.lineTo(x + size * 0.4, y);
+            ctx.fill();
+        } else if (type === 'flowers') {
+            // 꽃
+            for (let i = 0; i < 3; i++) {
+                ctx.fillStyle = ['#FF69B4', '#FFD700', '#FF4500'][i % 3];
+                ctx.beginPath();
+                ctx.arc(x + (i - 1) * size * 0.3, y, size * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
+    // 자동차 그리기
+    function drawCar(x, y, width, height, color, isBonus = false) {
+        // 그림자
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(x - 2, y + height, width + 4, 5);
+        
+        // 보너스 차량은 초록색 외곽선
+        if (isBonus) {
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x - 2, y - 2, width + 4, height + 4);
+        }
+        
+        // 차체
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, width, height);
+        
+        const gradient = ctx.createLinearGradient(x, y, x + width, y);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+        gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0.2)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, y, width, height);
+        
+        // 유리
+        ctx.fillStyle = '#4dd8ff';
+        ctx.fillRect(x + 5, y + 10, width - 10, height * 0.3);
+        
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.fillRect(x + 5, y + 10, width - 10, 8);
+        
+        // 바퀴
+        ctx.fillStyle = '#000';
+        ctx.fillRect(x - 3, y + 10, 6, 15);
+        ctx.fillRect(x + width - 3, y + 10, 6, 15);
+        ctx.fillRect(x - 3, y + height - 25, 6, 15);
+        ctx.fillRect(x + width - 3, y + height - 25, 6, 15);
+        
+        // 라이트
+        if (color === '#ff4444') {
+            ctx.fillStyle = '#ffff00';
+            ctx.fillRect(x + 8, y + height - 5, 12, 4);
+            ctx.fillRect(x + width - 20, y + height - 5, 12, 4);
+            
+            if (gameState.timeOfDay === 'night') {
+                ctx.fillStyle = 'rgba(255, 255, 0, 0.4)';
+                ctx.fillRect(x + 8, y + height - 1, 12, 20);
+                ctx.fillRect(x + width - 20, y + height - 1, 12, 20);
+            }
+        } else {
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(x + 8, y + 2, 10, 3);
+            ctx.fillRect(x + width - 18, y + 2, 10, 3);
+        }
+    }
+
+    // 도로 그리기
+    function drawRoad() {
+        const timeEnv = timeEnvironments[gameState.timeOfDay];
+        const loc = locations[gameState.location];
+        
+        // 하늘
+        const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height / 2);
+        skyGradient.addColorStop(0, timeEnv.skyTop);
+        skyGradient.addColorStop(1, timeEnv.skyBottom);
+        ctx.fillStyle = skyGradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+        
+        if (timeEnv.stars) {
+            drawStars();
+            drawMoon();
+        } else {
+            drawSun();
+        }
+        
+        const cloudY = 50 + Math.sin(Date.now() / 3000) * 10;
+        drawCloud(80, cloudY);
+        drawCloud(250, cloudY + 30);
+        
+        // 땅
+        ctx.fillStyle = loc.ground;
+        ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+        
+        const numSegments = 20;
+        const segmentHeight = canvas.height / numSegments;
+        
+        for (let i = 0; i < numSegments; i++) {
+            const y = i * segmentHeight;
+            const progress = i / numSegments;
+            
+            let segmentOffset = 0;
+            if (gameState.isTurning) {
+                const turnProgress = gameState.turnProgress / gameState.turnDuration;
+                const maxOffset = gameState.turnDirection === 'left' ? -150 : 150;
+                const ease = Math.sin(progress * Math.PI);
+                
+                if (turnProgress < 0.5) {
+                    segmentOffset = maxOffset * (turnProgress * 2) * ease;
+                } else {
+                    segmentOffset = maxOffset * (2 - turnProgress * 2) * ease;
+                }
+            }
+            
+            const perspectiveFactor = 0.5 + (progress * 0.5);
+            const roadWidth = 300 * perspectiveFactor;
+            const roadStart = (canvas.width - roadWidth) / 2 + segmentOffset;
+            
+            // 장식물
+            if (i % 4 === 0 && progress > 0.3) {
+                const decorSize = 20 * perspectiveFactor;
+                drawDecoration(roadStart - 25, y + segmentHeight / 2, decorSize, loc.decoration);
+                drawDecoration(roadStart + roadWidth + 25, y + segmentHeight / 2, decorSize, loc.decoration);
+            }
+            
+            // 도로
+            ctx.fillStyle = loc.roadColor;
+            ctx.fillRect(roadStart, y, roadWidth, segmentHeight + 2);
+            
+            // 도로 가장자리
+            ctx.fillStyle = '#fff';
+            const edgeWidth = 3 * perspectiveFactor;
+            ctx.fillRect(roadStart, y, edgeWidth, segmentHeight + 2);
+            ctx.fillRect(roadStart + roadWidth - edgeWidth, y, edgeWidth, segmentHeight + 2);
+            
+            // 중앙선
+            if (i % 2 === 0) {
+                ctx.fillStyle = '#FFD700';
+                const lineWidth = 5 * perspectiveFactor;
+                ctx.fillRect(roadStart + roadWidth / 2 - lineWidth / 2, y, lineWidth, segmentHeight * 0.6);
+            }
+        }
+    }
+
+    // 장애물 생성
+    function createObstacle() {
+        const roadCenter = canvas.width / 2;
+        const laneOffsets = [-80, 0, 80];
+        const lane = laneOffsets[Math.floor(Math.random() * laneOffsets.length)];
+        
+        // 20% 확률로 보너스 차량 (초록색, 충돌해도 안전, 점수 보너스)
+        const isBonus = Math.random() < 0.2;
+        
+        let color;
+        if (isBonus) {
+            color = '#00ff00'; // 초록색 = 보너스
+        } else {
+            const colors = ['#4444ff', '#ffaa00', '#ff44ff', '#00ffff', '#ff6b6b'];
+            color = colors[Math.floor(Math.random() * colors.length)];
+        }
+        
+        obstacles.push({
+            x: roadCenter + lane - 25,
+            y: -100,
+            width: 50,
+            height: 80,
+            color: color,
+            currentX: roadCenter + lane - 25,
+            isBonus: isBonus
+        });
+    }
+
+    // 충돌 감지
+    function checkCollision(rect1, rect2) {
+        return rect1.x < rect2.x + rect2.width &&
+               rect1.x + rect1.width > rect2.x &&
+               rect1.y < rect2.y + rect2.height &&
+               rect1.y + rect1.height > rect2.y;
+    }
+
+    // 게임 업데이트
+    function update() {
+        if (!gameState.running) return;
+
+        const settings = difficultySettings[gameState.difficulty];
+
+        updateTimeOfDay();
+        updateLocation();
+
+        if (settings.hasTurns) {
+            if (!gameState.isTurning) {
+                gameState.turnTimer++;
+                if (gameState.turnTimer > settings.turnInterval) {
+                    startTurn();
+                }
+            } else {
+                gameState.turnProgress++;
+                
+                if (gameState.turnProgress > gameState.turnDuration) {
+                    gameState.isTurning = false;
+                    gameState.roadOffset = 0;
+                    gameState.turnProgress = 0;
+                    gameState.turnTimer = 0;
+                    document.getElementById('turnIndicator').style.display = 'none';
+                }
+            }
+        }
+
+        let roadCenterOffset = 0;
+        if (gameState.isTurning) {
+            const turnProgress = gameState.turnProgress / gameState.turnDuration;
+            const maxOffset = gameState.turnDirection === 'left' ? -150 : 150;
+            
+            if (turnProgress < 0.5) {
+                roadCenterOffset = maxOffset * (turnProgress * 2);
+            } else {
+                roadCenterOffset = maxOffset * (2 - turnProgress * 2);
+            }
+        }
+        
+        const roadCenter = canvas.width / 2 + roadCenterOffset;
+        const roadHalfWidth = 130;
+        
+        if (keys.left && player.x > roadCenter - roadHalfWidth) {
+            player.x -= player.speed;
+        }
+        if (keys.right && player.x < roadCenter + roadHalfWidth - player.width) {
+            player.x += player.speed;
+        }
+        
+        if (gameState.isTurning) {
+            const moveAmount = gameState.turnDirection === 'left' ? 2 : -2;
+            player.x += moveAmount;
+            
+            if (player.x < roadCenter - roadHalfWidth) {
+                player.x = roadCenter - roadHalfWidth;
+            }
+            if (player.x > roadCenter + roadHalfWidth - player.width) {
+                player.x = roadCenter + roadHalfWidth - player.width;
+            }
+        }
+
+        obstacleTimer++;
+        if (obstacleTimer > settings.obstacleInterval) {
+            createObstacle();
+            obstacleTimer = 0;
+        }
+
+        obstacles = obstacles.filter(obstacle => {
+            obstacle.y += gameState.speed / 10;
+            
+            const obstacleProgress = 1 - (obstacle.y / canvas.height);
+            let obstacleTurnOffset = 0;
+            
+            if (gameState.isTurning && obstacleProgress > 0) {
+                const turnProgress = gameState.turnProgress / gameState.turnDuration;
+                const maxOffset = gameState.turnDirection === 'left' ? -150 : 150;
+                const ease = Math.sin(obstacleProgress * Math.PI);
+                
+                if (turnProgress < 0.5) {
+                    obstacleTurnOffset = maxOffset * (turnProgress * 2) * ease;
+                } else {
+                    obstacleTurnOffset = maxOffset * (2 - turnProgress * 2) * ease;
+                }
+                
+                const moveAmount = gameState.turnDirection === 'left' ? 2 : -2;
+                obstacle.x += moveAmount;
+            }
+            
+            obstacle.currentX = obstacle.x + obstacleTurnOffset;
+            
+            const obstacleRect = {
+                x: obstacle.currentX,
+                y: obstacle.y,
+                width: obstacle.width,
+                height: obstacle.height
+            };
+            
+            if (checkCollision(player, obstacleRect)) {
+                if (obstacle.isBonus) {
+                    // 보너스 차량 - 점수만 추가
+                    gameState.score += 50;
+                    showNotification('+50 보너스! 🎉');
+                    return false;
+                } else {
+                    // 일반 차량 - 게임 오버
+                    gameOver();
+                    return false;
+                }
+            }
+            
+            if (obstacle.y > canvas.height) {
+                if (!obstacle.isBonus) {
+                    gameState.score += 10;
+                }
+                return false;
+            }
+            
+            return true;
+        });
+
+        gameState.speed = settings.baseSpeed + Math.floor(gameState.score / 100) * settings.speedIncrease;
+        if (gameState.speed > gameState.maxSpeed) {
+            gameState.maxSpeed = gameState.speed;
+        }
+
+        document.getElementById('score').textContent = gameState.score;
+        document.getElementById('speed').textContent = gameState.speed;
+        document.getElementById('timeLabel').textContent = timeEnvironments[gameState.timeOfDay].name;
+        document.getElementById('locationLabel').textContent = locations[gameState.location].name;
+    }
+
+    // 회전 시작
+    function startTurn() {
+        gameState.isTurning = true;
+        gameState.turnDirection = Math.random() > 0.5 ? 'left' : 'right';
+        gameState.turnProgress = 0;
+        
+        const indicator = document.getElementById('turnIndicator');
+        indicator.textContent = gameState.turnDirection === 'left' ? '← 좌회전!' : '우회전! →';
+        indicator.style.display = 'block';
+    }
+
+    // 그리기
+    function draw() {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        if (gameState.isTurning) {
+            const turnProgress = gameState.turnProgress / gameState.turnDuration;
+            let rotationAngle = 0;
+            
+            if (turnProgress < 0.5) {
+                const maxAngle = gameState.turnDirection === 'left' ? -0.15 : 0.15;
+                rotationAngle = maxAngle * (turnProgress * 2);
+            } else {
+                const maxAngle = gameState.turnDirection === 'left' ? -0.15 : 0.15;
+                rotationAngle = maxAngle * (2 - turnProgress * 2);
+            }
+            
+            ctx.translate(canvas.width / 2, canvas.height);
+            ctx.rotate(rotationAngle);
+            ctx.translate(-canvas.width / 2, -canvas.height);
+        }
+        
+        drawRoad();
+        
+        obstacles.forEach(obstacle => {
+            const x = obstacle.currentX || obstacle.x;
+            drawCar(x, obstacle.y, obstacle.width, obstacle.height, obstacle.color, obstacle.isBonus);
+        });
+        
+        drawCar(player.x, player.y, player.width, player.height, player.color);
+        
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
+    // 게임 오버
+    function gameOver() {
+        gameState.running = false;
+        document.getElementById('finalScore').textContent = gameState.score;
+        document.getElementById('maxSpeed').textContent = gameState.maxSpeed;
+        document.getElementById('finalDifficulty').textContent = difficultySettings[gameState.difficulty].name;
+        document.getElementById('gameOver').style.display = 'block';
+    }
+
+    // 난이도 선택
+    function showDifficultySelect() {
+        document.getElementById('gameOver').style.display = 'none';
+        document.getElementById('difficultySelect').style.display = 'block';
+        gameState.running = false;
+    }
+
+    // 게임 시작
+    function startGame(difficulty) {
+        const settings = difficultySettings[difficulty];
+        
+        gameState = {
+            running: true,
+            score: 0,
+            speed: settings.baseSpeed,
+            maxSpeed: settings.baseSpeed,
+            difficulty: difficulty,
+            roadOffset: 0,
+            isTurning: false,
+            turnDirection: null,
+            turnProgress: 0,
+            turnDuration: 180,
+            turnTimer: 0,
+            turnInterval: settings.turnInterval,
+            horizontalScroll: 0,
+            timeOfDay: 'day',
+            location: 'city'
+        };
+        
+        player.x = canvas.width / 2 - 25;
+        obstacles = [];
+        obstacleTimer = 0;
+        
+        document.getElementById('difficultySelect').style.display = 'none';
+        document.getElementById('gameOver').style.display = 'none';
+        document.getElementById('turnIndicator').style.display = 'none';
+        document.getElementById('difficultyLabel').textContent = '난이도: ' + settings.name;
+        document.getElementById('timeLabel').textContent = '☀️ 낮';
+        document.getElementById('locationLabel').textContent = '🏙️ 도시';
+    }
+
+    // 게임 루프
+    function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+</script>
+```
+
+</body>
+</html>
