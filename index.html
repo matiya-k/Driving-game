@@ -215,7 +215,6 @@
         <canvas id="gameCanvas" width="400" height="600"></canvas>
         <div id="ui">
             <div>점수: <span id="score">0</span></div>
-            <div>❤️ 목숨: <span id="lives">3</span></div>
             <div>최고기록: <span id="highScore">0</span></div>
             <div>속도: <span id="speed">0</span> km/h</div>
             <div id="difficultyLabel" style="font-size: 16px; margin-top: 5px;"></div>
@@ -243,17 +242,14 @@
             <div id="medalDisplay" style="font-size: 80px; margin: 20px 0;"></div>
             <p>난이도: <span id="finalDifficulty">-</span></p>
             <p>최종 점수: <span id="finalScore">0</span></p>
-            <p>획득 메달: <span id="earnedMedal">-</span></p>
-            <p>보유 메달: 🥇<span id="goldMedals">0</span> 🥈<span id="silverMedals">0</span> 🥉<span id="bronzeMedals">0</span></p>
             <p>최고 기록: <span id="finalHighScore">0</span></p>
             <p>최고 속도: <span id="maxSpeed">0</span> km/h</p>
-            <div id="lifeSelection" style="margin-top: 20px; display: none;">
-                <p style="font-size: 20px; color: #4CAF50;">목숨 추가하기:</p>
-                <button onclick="addLives(3)" id="useGoldBtn" style="background: #FFD700; margin: 5px;">🥇 금메달 사용 (+3 목숨)</button>
-                <button onclick="addLives(2)" id="useSilverBtn" style="background: #C0C0C0; margin: 5px;">🥈 은메달 사용 (+2 목숨)</button>
-                <button onclick="addLives(1)" id="useBronzeBtn" style="background: #CD7F32; margin: 5px;">🥉 동메달 사용 (+1 목숨)</button>
+            <div id="medalQuestion" style="margin-top: 20px; display: none;">
+                <p style="font-size: 24px; color: #4CAF50; font-weight: bold;" id="medalQuestionText"></p>
+                <button onclick="useMedalForRevive(true)" style="background: #4CAF50; margin: 10px; padding: 15px 30px; font-size: 18px;">예 (계속하기)</button>
+                <button onclick="useMedalForRevive(false)" style="background: #f44336; margin: 10px; padding: 15px 30px; font-size: 18px;">아니오</button>
             </div>
-            <button onclick="showDifficultySelect()">다시 시작</button>
+            <button onclick="showDifficultySelect()" id="restartBtn">다시 시작</button>
         </div>
         <div id="controls">
             <div class="control-btn" id="leftBtn">◀</div>
@@ -288,7 +284,11 @@
         location: 'city',
         cameraAngle: 'normal', // 'normal', 'high', 'low', 'side'
         lives: 3,
-        medals: {gold: 0, silver: 0, bronze: 0}
+        medals: {
+            gold: {easy: 0, medium: 0, hard: 0},
+            silver: {easy: 0, medium: 0, hard: 0},
+            bronze: {easy: 0, medium: 0, hard: 0}
+        }
     };
 
     // 최고 기록 저장 (난이도별)
@@ -1337,24 +1337,17 @@
             
             if (checkCollision(player, obstacleRect)) {
                 if (obstacle.isBonus) {
-                    // 보너스 차량 - 점수만 추가
-                    gameState.score += 50;
-                    showNotification('+50 보너스! 🎉');
+                    // 초록 보너스 차량 - 게임 오버!
+                    gameOver();
                     return false;
                 } else if (obstacle.color === player.color) {
-                    // 같은 색깔 차량 - 점수 획득!
+                    // 같은 색깔 차량 - 보너스 점수!
                     gameState.score += 30;
                     showNotification('+30 같은 색! 🚗');
                     return false;
                 } else {
-                    // 다른 색깔 차량 - 목숨 감소
-                    gameState.lives--;
-                    document.getElementById('lives').textContent = gameState.lives;
-                    showNotification('❤️ 목숨 -1');
-                    
-                    if (gameState.lives <= 0) {
-                        gameOver();
-                    }
+                    // 다른 색깔 차량 - 게임 오버
+                    gameOver();
                     return false;
                 }
             }
@@ -1376,7 +1369,6 @@
 
         document.getElementById('score').textContent = gameState.score;
         document.getElementById('speed').textContent = gameState.speed;
-        document.getElementById('lives').textContent = gameState.lives;
         document.getElementById('highScore').textContent = highScores[gameState.difficulty];
         document.getElementById('timeLabel').textContent = timeEnvironments[gameState.timeOfDay].name;
         document.getElementById('locationLabel').textContent = locations[gameState.location].name;
@@ -1454,32 +1446,20 @@
         
         // 메달 획득
         const medal = getMedal(finalScore);
+        let earnedMedalType = null;
         
-        // 메달 저장
-        let earnedMedalText = medal.name;
         if (medal.emoji === '🥇') {
-            gameState.medals.gold++;
-            earnedMedalText = '🥇 금메달 획득!';
+            earnedMedalType = 'gold';
         } else if (medal.emoji === '🥈') {
-            gameState.medals.silver++;
-            earnedMedalText = '🥈 은메달 획득!';
+            earnedMedalType = 'silver';
         } else if (medal.emoji === '🥉') {
-            gameState.medals.bronze++;
-            earnedMedalText = '🥉 동메달 획득!';
-        } else {
-            earnedMedalText = '메달 없음';
+            earnedMedalType = 'bronze';
         }
         
         document.getElementById('finalScore').textContent = finalScore;
         document.getElementById('maxSpeed').textContent = gameState.maxSpeed;
         document.getElementById('finalDifficulty').textContent = difficultySettings[currentDifficulty].name;
         document.getElementById('finalHighScore').textContent = highScores[currentDifficulty];
-        document.getElementById('earnedMedal').textContent = earnedMedalText;
-        
-        // 보유 메달 표시
-        document.getElementById('goldMedals').textContent = gameState.medals.gold;
-        document.getElementById('silverMedals').textContent = gameState.medals.silver;
-        document.getElementById('bronzeMedals').textContent = gameState.medals.bronze;
         
         // 메달 표시
         const medalDisplay = document.getElementById('medalDisplay');
@@ -1491,53 +1471,97 @@
             medalDisplay.style.color = '#888';
         }
         
-        // 목숨 추가 버튼 표시 여부
-        const lifeSelection = document.getElementById('lifeSelection');
-        if (gameState.medals.gold > 0 || gameState.medals.silver > 0 || gameState.medals.bronze > 0) {
-            lifeSelection.style.display = 'block';
+        // 메달을 땄으면 사용 여부 물어보기
+        const medalQuestion = document.getElementById('medalQuestion');
+        const restartBtn = document.getElementById('restartBtn');
+        
+        if (earnedMedalType) {
+            let questionText = '';
             
-            // 버튼 활성화/비활성화
-            document.getElementById('useGoldBtn').disabled = gameState.medals.gold === 0;
-            document.getElementById('useSilverBtn').disabled = gameState.medals.silver === 0;
-            document.getElementById('useBronzeBtn').disabled = gameState.medals.bronze === 0;
+            if (earnedMedalType === 'gold') {
+                questionText = '🥇 금메달 획득! 목숨 3개로 계속하시겠습니까?';
+            } else if (earnedMedalType === 'silver') {
+                questionText = '🥈 은메달 획득! 목숨 2개로 계속하시겠습니까?';
+            } else if (earnedMedalType === 'bronze') {
+                questionText = '🥉 동메달 획득! 목숨 1개로 계속하시겠습니까?';
+            }
+            
+            document.getElementById('medalQuestionText').textContent = questionText;
+            medalQuestion.style.display = 'block';
+            restartBtn.style.display = 'none';
+            
+            // 현재 획득한 메달 타입과 난이도 저장
+            gameState.currentEarnedMedal = {
+                type: earnedMedalType,
+                difficulty: currentDifficulty
+            };
         } else {
-            lifeSelection.style.display = 'none';
+            medalQuestion.style.display = 'none';
+            restartBtn.style.display = 'block';
         }
         
         document.getElementById('gameOver').style.display = 'block';
     }
     
-    // 목숨 추가 함수
-    function addLives(amount) {
-        if (amount === 3 && gameState.medals.gold > 0) {
-            gameState.medals.gold--;
-            gameState.lives = 3;
-            showNotification('🥇 금메달 사용! 목숨 3개로 재시작!');
-        } else if (amount === 2 && gameState.medals.silver > 0) {
-            gameState.medals.silver--;
-            gameState.lives = 3;
-            showNotification('🥈 은메달 사용! 목숨 2개로 재시작!');
-        } else if (amount === 1 && gameState.medals.bronze > 0) {
-            gameState.medals.bronze--;
-            gameState.lives = 3;
-            showNotification('🥉 동메달 사용! 목숨 1개로 재시작!');
+    // 메달 사용해서 부활
+    function useMedalForRevive(useIt) {
+        if (useIt && gameState.currentEarnedMedal) {
+            // 메달 사용 - 게임 계속
+            let lives = 0;
+            let medalName = '';
+            
+            if (gameState.currentEarnedMedal.type === 'gold') {
+                lives = 3;
+                medalName = '금메달';
+            } else if (gameState.currentEarnedMedal.type === 'silver') {
+                lives = 2;
+                medalName = '은메달';
+            } else if (gameState.currentEarnedMedal.type === 'bronze') {
+                lives = 1;
+                medalName = '동메달';
+            }
+            
+            gameState.lives = lives;
+            gameState.currentEarnedMedal = null;
+            
+            // 게임 재개
+            document.getElementById('gameOver').style.display = 'none';
+            gameState.running = true;
+            obstacles = [];
+            obstacleTimer = 0;
+            player.x = canvas.width / 2 - 25;
+            
+            showNotification(`🎉 ${medalName} 사용! 목숨 ${lives}개로 계속!`);
+        } else {
+            // 메달 보관 - 난이도별로 저장
+            if (gameState.currentEarnedMedal) {
+                const medalType = gameState.currentEarnedMedal.type;
+                const medalDifficulty = gameState.currentEarnedMedal.difficulty;
+                
+                if (medalType === 'gold') {
+                    if (!gameState.medals.gold[medalDifficulty]) {
+                        gameState.medals.gold[medalDifficulty] = 0;
+                    }
+                    gameState.medals.gold[medalDifficulty]++;
+                } else if (medalType === 'silver') {
+                    if (!gameState.medals.silver[medalDifficulty]) {
+                        gameState.medals.silver[medalDifficulty] = 0;
+                    }
+                    gameState.medals.silver[medalDifficulty]++;
+                } else if (medalType === 'bronze') {
+                    if (!gameState.medals.bronze[medalDifficulty]) {
+                        gameState.medals.bronze[medalDifficulty] = 0;
+                    }
+                    gameState.medals.bronze[medalDifficulty]++;
+                }
+                
+                gameState.currentEarnedMedal = null;
+            }
+            
+            // 다시 시작 버튼 표시
+            document.getElementById('medalQuestion').style.display = 'none';
+            document.getElementById('restartBtn').style.display = 'block';
         }
-        
-        // 게임 재시작
-        document.getElementById('gameOver').style.display = 'none';
-        gameState.running = true;
-        gameState.score = 0;
-        gameState.speed = difficultySettings[gameState.difficulty].baseSpeed;
-        obstacles = [];
-        obstacleTimer = 0;
-        player.x = canvas.width / 2 - 25;
-        
-        // 목숨은 메달에 따라 설정됨
-        if (amount === 3) gameState.lives = 3;
-        else if (amount === 2) gameState.lives = 2;
-        else if (amount === 1) gameState.lives = 1;
-        
-        document.getElementById('lives').textContent = gameState.lives;
     }
 
     // 난이도 선택
@@ -1573,7 +1597,11 @@
             location: 'city',
             cameraAngle: 'normal',
             lives: 3,
-            medals: gameState.medals || {gold: 0, silver: 0, bronze: 0}
+            medals: gameState.medals || {
+                gold: {easy: 0, medium: 0, hard: 0},
+                silver: {easy: 0, medium: 0, hard: 0},
+                bronze: {easy: 0, medium: 0, hard: 0}
+            }
         };
         
         player.x = canvas.width / 2 - 25;
@@ -1585,7 +1613,6 @@
         document.getElementById('turnIndicator').style.display = 'none';
         document.getElementById('difficultyLabel').textContent = '난이도: ' + settings.name;
         document.getElementById('highScore').textContent = highScores[difficulty];
-        document.getElementById('lives').textContent = gameState.lives;
         document.getElementById('timeLabel').textContent = '☀️ 낮';
         document.getElementById('locationLabel').textContent = '🏙️ 도시';
     }
