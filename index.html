@@ -215,6 +215,7 @@
         <canvas id="gameCanvas" width="400" height="600"></canvas>
         <div id="ui">
             <div>점수: <span id="score">0</span></div>
+            <div>❤️ 목숨: <span id="lives">3</span></div>
             <div>최고기록: <span id="highScore">0</span></div>
             <div>속도: <span id="speed">0</span> km/h</div>
             <div id="difficultyLabel" style="font-size: 16px; margin-top: 5px;"></div>
@@ -242,8 +243,16 @@
             <div id="medalDisplay" style="font-size: 80px; margin: 20px 0;"></div>
             <p>난이도: <span id="finalDifficulty">-</span></p>
             <p>최종 점수: <span id="finalScore">0</span></p>
+            <p>획득 메달: <span id="earnedMedal">-</span></p>
+            <p>보유 메달: 🥇<span id="goldMedals">0</span> 🥈<span id="silverMedals">0</span> 🥉<span id="bronzeMedals">0</span></p>
             <p>최고 기록: <span id="finalHighScore">0</span></p>
             <p>최고 속도: <span id="maxSpeed">0</span> km/h</p>
+            <div id="lifeSelection" style="margin-top: 20px; display: none;">
+                <p style="font-size: 20px; color: #4CAF50;">목숨 추가하기:</p>
+                <button onclick="addLives(3)" id="useGoldBtn" style="background: #FFD700; margin: 5px;">🥇 금메달 사용 (+3 목숨)</button>
+                <button onclick="addLives(2)" id="useSilverBtn" style="background: #C0C0C0; margin: 5px;">🥈 은메달 사용 (+2 목숨)</button>
+                <button onclick="addLives(1)" id="useBronzeBtn" style="background: #CD7F32; margin: 5px;">🥉 동메달 사용 (+1 목숨)</button>
+            </div>
             <button onclick="showDifficultySelect()">다시 시작</button>
         </div>
         <div id="controls">
@@ -277,7 +286,9 @@
         horizontalScroll: 0,
         timeOfDay: 'day',
         location: 'city',
-        cameraAngle: 'normal' // 'normal', 'high', 'low', 'side'
+        cameraAngle: 'normal', // 'normal', 'high', 'low', 'side'
+        lives: 3,
+        medals: {gold: 0, silver: 0, bronze: 0}
     };
 
     // 최고 기록 저장 (난이도별)
@@ -316,28 +327,32 @@
             ground: '#555',
             roadColor: '#2a2a2a',
             sideColor: '#666',
-            decoration: 'buildings'
+            decoration: 'buildings',
+            background: 'city'
         },
         beach: {
             name: '🏖️ 해변',
             ground: '#F4A460',
             roadColor: '#3a3a3a',
             sideColor: '#C2B280',
-            decoration: 'palm'
+            decoration: 'palm',
+            background: 'ocean'
         },
         mountain: {
             name: '⛰️ 산',
             ground: '#8B7355',
             roadColor: '#444',
             sideColor: '#2d5016',
-            decoration: 'pine'
+            decoration: 'pine',
+            background: 'mountains'
         },
         countryside: {
             name: '🌾 시골',
             ground: '#9ACD32',
             roadColor: '#3a3a3a',
             sideColor: '#7CFC00',
-            decoration: 'flowers'
+            decoration: 'flowers',
+            background: 'farm'
         }
     };
 
@@ -375,7 +390,7 @@
         width: 50,
         height: 80,
         speed: 5,
-        color: '#ff4444',
+        color: '#00CED1', // 초기값, startGame에서 랜덤으로 설정됨
         shake: 0,
         wheelRotation: 0
     };
@@ -572,6 +587,310 @@
         ctx.fill();
     }
 
+    // 바다 배경 그리기 (해변가 느낌)
+    function drawOceanBackground() {
+        const timeEnv = timeEnvironments[gameState.timeOfDay];
+        
+        // 바다
+        const oceanGradient = ctx.createLinearGradient(canvas.width / 2, canvas.height / 2, canvas.width / 2, canvas.height);
+        oceanGradient.addColorStop(0, '#4A90E2');
+        oceanGradient.addColorStop(1, '#1E5A8E');
+        ctx.fillStyle = oceanGradient;
+        ctx.fillRect(canvas.width / 2, canvas.height / 2, canvas.width / 2, canvas.height / 2);
+        
+        // 물결 라인
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 8; i++) {
+            const offset = (Date.now() / 800 + i * 40) % canvas.width;
+            ctx.beginPath();
+            for (let x = canvas.width / 2; x < canvas.width; x += 15) {
+                const y = canvas.height / 2 + 30 + i * 15 + Math.sin((x + offset) / 25) * 3;
+                if (x === canvas.width / 2) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+        }
+        
+        // 요트
+        const boatX = canvas.width * 0.7 + Math.sin(Date.now() / 3000) * 30;
+        const boatY = canvas.height / 2 + 80;
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(boatX, boatY - 25);
+        ctx.lineTo(boatX, boatY);
+        ctx.lineTo(boatX + 20, boatY - 10);
+        ctx.fill();
+        
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(boatX - 15, boatY, 30, 8);
+        
+        // 모래사장 (왼쪽)
+        ctx.fillStyle = '#F4E4C1';
+        ctx.fillRect(0, canvas.height / 2, canvas.width / 2, canvas.height / 2);
+        
+        // 해변 언덕
+        ctx.fillStyle = '#D4C5A0';
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height / 2 + 80);
+        ctx.lineTo(150, canvas.height / 2 + 40);
+        ctx.lineTo(canvas.width / 2, canvas.height / 2 + 60);
+        ctx.lineTo(canvas.width / 2, canvas.height);
+        ctx.lineTo(0, canvas.height);
+        ctx.fill();
+    }
+
+    // 산 배경 그리기 (산맥 느낌)
+    function drawMountainBackground() {
+        // 하늘색 산 (멀리)
+        ctx.fillStyle = '#B0C4DE';
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height / 2 + 20);
+        ctx.lineTo(80, canvas.height / 3 + 40);
+        ctx.lineTo(160, canvas.height / 2 + 20);
+        ctx.lineTo(0, canvas.height / 2 + 20);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.moveTo(120, canvas.height / 2 + 20);
+        ctx.lineTo(200, canvas.height / 3 + 20);
+        ctx.lineTo(280, canvas.height / 2 + 20);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.moveTo(canvas.width - 200, canvas.height / 2 + 20);
+        ctx.lineTo(canvas.width - 100, canvas.height / 3 + 30);
+        ctx.lineTo(canvas.width, canvas.height / 2 + 20);
+        ctx.fill();
+        
+        // 눈 덮인 봉우리
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.moveTo(70, canvas.height / 3 + 50);
+        ctx.lineTo(80, canvas.height / 3 + 40);
+        ctx.lineTo(90, canvas.height / 3 + 50);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.moveTo(190, canvas.height / 3 + 30);
+        ctx.lineTo(200, canvas.height / 3 + 20);
+        ctx.lineTo(210, canvas.height / 3 + 30);
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.moveTo(canvas.width - 110, canvas.height / 3 + 40);
+        ctx.lineTo(canvas.width - 100, canvas.height / 3 + 30);
+        ctx.lineTo(canvas.width - 90, canvas.height / 3 + 40);
+        ctx.fill();
+        
+        // 소나무 숲 (멀리)
+        ctx.fillStyle = '#2F5233';
+        for (let i = 0; i < 20; i++) {
+            const treeX = (i * 30 + i * 10) % canvas.width;
+            const treeY = canvas.height / 2 + 20;
+            ctx.beginPath();
+            ctx.moveTo(treeX, treeY - 20);
+            ctx.lineTo(treeX - 8, treeY);
+            ctx.lineTo(treeX + 8, treeY);
+            ctx.fill();
+        }
+        
+        // 폭포/시냇물 (오른쪽 산에)
+        ctx.strokeStyle = '#87CEEB';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(canvas.width - 120, canvas.height / 3 + 60);
+        ctx.lineTo(canvas.width - 130, canvas.height / 2);
+        ctx.lineTo(canvas.width - 115, canvas.height / 2 + 20);
+        ctx.stroke();
+        
+        // 땅
+        ctx.fillStyle = '#4A6741';
+        ctx.fillRect(0, canvas.height / 2 + 80, canvas.width, canvas.height / 2 - 80);
+    }
+
+    // 시골 배경 그리기 (목가적 느낌)
+    function drawFarmBackground() {
+        // 초록 들판
+        ctx.fillStyle = '#9ACD32';
+        ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+        
+        // 언덕
+        ctx.fillStyle = '#8FBC8F';
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height / 2 + 60);
+        ctx.quadraticCurveTo(100, canvas.height / 2 + 30, 200, canvas.height / 2 + 50);
+        ctx.quadraticCurveTo(300, canvas.height / 2 + 70, canvas.width, canvas.height / 2 + 40);
+        ctx.lineTo(canvas.width, canvas.height);
+        ctx.lineTo(0, canvas.height);
+        ctx.fill();
+        
+        // 밭 줄무늬
+        ctx.fillStyle = '#7CFC00';
+        for (let i = 0; i < canvas.width; i += 50) {
+            ctx.fillRect(i, canvas.height / 2 + 60, 25, canvas.height / 2 - 60);
+        }
+        
+        // 빨간 헛간 (왼쪽)
+        const barnX = 80;
+        const barnY = canvas.height / 2 + 50;
+        
+        ctx.fillStyle = '#C41E3A';
+        ctx.fillRect(barnX, barnY, 50, 40);
+        
+        // 헛간 지붕
+        ctx.beginPath();
+        ctx.moveTo(barnX - 5, barnY);
+        ctx.lineTo(barnX + 25, barnY - 20);
+        ctx.lineTo(barnX + 55, barnY);
+        ctx.fill();
+        
+        // 사일로 (곡물저장고)
+        ctx.fillStyle = '#A0A0A0';
+        ctx.fillRect(barnX + 55, barnY + 10, 15, 30);
+        ctx.fillStyle = '#808080';
+        ctx.beginPath();
+        ctx.arc(barnX + 62.5, barnY + 10, 7.5, Math.PI, 0, true);
+        ctx.fill();
+        
+        // 작은 집 (오른쪽)
+        const houseX = canvas.width - 120;
+        const houseY = canvas.height / 2 + 65;
+        
+        ctx.fillStyle = '#E8D5B7';
+        ctx.fillRect(houseX, houseY, 40, 30);
+        
+        ctx.fillStyle = '#C41E3A';
+        ctx.beginPath();
+        ctx.moveTo(houseX - 3, houseY);
+        ctx.lineTo(houseX + 20, houseY - 15);
+        ctx.lineTo(houseX + 43, houseY);
+        ctx.fill();
+        
+        // 창문
+        ctx.fillStyle = '#87CEEB';
+        ctx.fillRect(houseX + 8, houseY + 8, 10, 10);
+        ctx.fillRect(houseX + 22, houseY + 8, 10, 10);
+        
+        // 양들 (풀밭에)
+        ctx.fillStyle = '#FFFFFF';
+        for (let i = 0; i < 5; i++) {
+            const sheepX = canvas.width * 0.6 + i * 35;
+            const sheepY = canvas.height / 2 + 80 + (i % 2) * 15;
+            ctx.beginPath();
+            ctx.arc(sheepX, sheepY, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(sheepX - 3, sheepY + 4, 2, 4);
+            ctx.fillRect(sheepX + 1, sheepY + 4, 2, 4);
+            ctx.fillStyle = '#FFFFFF';
+        }
+        
+        // 울타리
+        ctx.strokeStyle = '#8B4513';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < canvas.width; i += 30) {
+            ctx.beginPath();
+            ctx.moveTo(i, canvas.height / 2 + 70);
+            ctx.lineTo(i, canvas.height / 2 + 85);
+            ctx.stroke();
+        }
+        
+        // 울타리 가로대
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height / 2 + 75);
+        ctx.lineTo(canvas.width, canvas.height / 2 + 75);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height / 2 + 82);
+        ctx.lineTo(canvas.width, canvas.height / 2 + 82);
+        ctx.stroke();
+        
+        // 꽃밭 (도로 가까이)
+        const flowerColors = ['#FF69B4', '#FFD700', '#FF6347', '#9370DB', '#FF1493', '#FFA500'];
+        for (let i = 0; i < 25; i++) {
+            const flowerX = (i * 25 + (i * 13) % 40);
+            const flowerY = canvas.height / 2 + 95 + (i * 7) % 30;
+            
+            if (flowerX < canvas.width) {
+                ctx.fillStyle = flowerColors[i % flowerColors.length];
+                
+                // 꽃잎
+                for (let p = 0; p < 5; p++) {
+                    const angle = (p * 72) * Math.PI / 180;
+                    ctx.beginPath();
+                    ctx.arc(flowerX + Math.cos(angle) * 3, flowerY + Math.sin(angle) * 3, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // 꽃 중심
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath();
+                ctx.arc(flowerX, flowerY, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
+    // 도시 배경 그리기
+    function drawCityBackground() {
+        // 먼 산
+        ctx.fillStyle = '#B0C4DE';
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height / 2 + 60);
+        ctx.lineTo(100, canvas.height / 2 + 30);
+        ctx.lineTo(200, canvas.height / 2 + 50);
+        ctx.lineTo(canvas.width, canvas.height / 2 + 40);
+        ctx.lineTo(canvas.width, canvas.height);
+        ctx.lineTo(0, canvas.height);
+        ctx.fill();
+        
+        // 도시 스카이라인 (멀리)
+        const buildings = [
+            {x: canvas.width * 0.3, w: 40, h: 80},
+            {x: canvas.width * 0.38, w: 50, h: 100},
+            {x: canvas.width * 0.45, w: 35, h: 90},
+            {x: canvas.width * 0.52, w: 45, h: 110},
+            {x: canvas.width * 0.6, w: 40, h: 85},
+            {x: canvas.width * 0.68, w: 50, h: 95}
+        ];
+        
+        buildings.forEach(b => {
+            // 빌딩
+            ctx.fillStyle = '#778899';
+            ctx.fillRect(b.x, canvas.height / 2 + 20 - b.h * 0.3, b.w, b.h * 0.3);
+            
+            // 빌딩 외곽선
+            ctx.strokeStyle = '#696969';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(b.x, canvas.height / 2 + 20 - b.h * 0.3, b.w, b.h * 0.3);
+            
+            // 창문
+            ctx.fillStyle = '#FFD700';
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 3; j++) {
+                    if (b.w > 35) {
+                        ctx.fillRect(b.x + 5 + j * 12, canvas.height / 2 + 20 - b.h * 0.3 + 5 + i * 7, 8, 5);
+                    }
+                }
+            }
+        });
+        
+        // 다리 (고가도로)
+        ctx.fillStyle = '#D3D3D3';
+        ctx.fillRect(canvas.width * 0.2, canvas.height / 2 + 15, canvas.width * 0.6, 8);
+        
+        // 다리 기둥
+        ctx.fillRect(canvas.width * 0.3, canvas.height / 2 + 15, 6, 30);
+        ctx.fillRect(canvas.width * 0.5, canvas.height / 2 + 15, 6, 30);
+        ctx.fillRect(canvas.width * 0.7, canvas.height / 2 + 15, 6, 30);
+    }
+
     // 장소별 장식물 그리기
     function drawDecoration(x, y, size, type) {
         const loc = locations[gameState.location];
@@ -709,7 +1028,8 @@
         }
         
         // 라이트
-        if (color === '#ff4444' || isPlayer) {
+        if (isPlayer) {
+            // 플레이어 차량은 항상 헤드라이트 있음
             ctx.fillStyle = '#ffff00';
             ctx.fillRect(drawX + 8, drawY + height - 5, 12, 4);
             ctx.fillRect(drawX + width - 20, drawY + height - 5, 12, 4);
@@ -718,12 +1038,13 @@
                 ctx.fillStyle = 'rgba(255, 255, 0, 0.4)';
                 ctx.fillRect(drawX + 8, drawY + height - 1, 12, 20);
                 ctx.fillRect(drawX + width - 20, drawY + height - 1, 12, 20);
-            } else if (isPlayer) {
+            } else {
                 ctx.fillStyle = 'rgba(255, 255, 0, 0.2)';
                 ctx.fillRect(drawX + 8, drawY + height - 1, 12, 10);
                 ctx.fillRect(drawX + width - 20, drawY + height - 1, 12, 10);
             }
         } else {
+            // 일반 차량 - 후미등
             ctx.fillStyle = '#ff0000';
             ctx.fillRect(drawX + 8, drawY + 2, 10, 3);
             ctx.fillRect(drawX + width - 18, drawY + 2, 10, 3);
@@ -774,36 +1095,49 @@
             drawSun();
         }
         
-        const cloudY = 50 + Math.sin(Date.now() / 3000) * 10;
-        drawCloud(80, cloudY);
-        drawCloud(250, cloudY + 30);
+        // 구름 (도시와 산에만)
+        if (loc.background === 'city' || loc.background === 'mountains') {
+            const cloudY = 50 + Math.sin(Date.now() / 3000) * 10;
+            drawCloud(80, cloudY);
+            drawCloud(250, cloudY + 30);
+        }
         
-        // 땅
-        ctx.fillStyle = loc.ground;
-        ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+        // 장소별 배경
+        if (loc.background === 'ocean') {
+            drawOceanBackground();
+        } else if (loc.background === 'mountains') {
+            drawMountainBackground();
+        } else if (loc.background === 'farm') {
+            drawFarmBackground();
+        } else if (loc.background === 'city') {
+            drawCityBackground();
+            // 도시 땅
+            ctx.fillStyle = loc.ground;
+            ctx.fillRect(0, canvas.height / 2 + 20, canvas.width, canvas.height / 2 - 20);
+        }
         
         const numSegments = 20;
         const segmentHeight = canvas.height / numSegments;
         
         // 카메라 각도에 따른 설정
         let roadWidthBase = 300;
-        let perspectiveMin = 0.5;
-        let perspectiveMax = 1.0;
+        let perspectiveMin = 0.8;  // 더 크게 (위로 올라가는 느낌 감소)
+        let perspectiveMax = 1.0;  // 거의 일정하게
         let horizonY = 0;
         
         if (gameState.cameraAngle === 'high') {
             // 높은 시점 - 도로가 더 넓게 보임
-            perspectiveMin = 0.7;
-            perspectiveMax = 1.1;
-            horizonY = -50;
+            perspectiveMin = 0.85;
+            perspectiveMax = 1.05;
+            horizonY = -30;
         } else if (gameState.cameraAngle === 'low') {
             // 낮은 시점 - 도로가 더 좁게, 원근감 강함
-            perspectiveMin = 0.3;
-            perspectiveMax = 0.9;
-            horizonY = 50;
+            perspectiveMin = 0.6;
+            perspectiveMax = 0.95;
+            horizonY = 30;
         } else if (gameState.cameraAngle === 'side') {
             // 측면 시점 - 약간 기울어짐
-            perspectiveMin = 0.5;
+            perspectiveMin = 0.8;
             perspectiveMax = 1.0;
         }
         
@@ -871,12 +1205,12 @@
         const laneOffsets = [-80, 0, 80];
         const lane = laneOffsets[Math.floor(Math.random() * laneOffsets.length)];
         
-        // 20% 확률로 보너스 차량 (초록색, 충돌해도 안전, 점수 보너스)
-        const isBonus = Math.random() < 0.2;
+        // 5% 확률로 보너스 차량 (초록색, 충돌해도 안전, 점수 보너스)
+        const isBonus = Math.random() < 0.05;
         
         let color;
         if (isBonus) {
-            color = '#00ff00'; // 초록색 = 보너스
+            color = '#00ff00'; // 초록색 = 보너스 (5% 확률)
         } else {
             // 랜덤 색상: 빨강, 검정, 하양, 민트
             const obstacleColors = ['#ff0000', '#1a1a1a', '#ffffff', '#00CED1'];
@@ -1007,9 +1341,20 @@
                     gameState.score += 50;
                     showNotification('+50 보너스! 🎉');
                     return false;
+                } else if (obstacle.color === player.color) {
+                    // 같은 색깔 차량 - 점수 획득!
+                    gameState.score += 30;
+                    showNotification('+30 같은 색! 🚗');
+                    return false;
                 } else {
-                    // 일반 차량 - 게임 오버
-                    gameOver();
+                    // 다른 색깔 차량 - 목숨 감소
+                    gameState.lives--;
+                    document.getElementById('lives').textContent = gameState.lives;
+                    showNotification('❤️ 목숨 -1');
+                    
+                    if (gameState.lives <= 0) {
+                        gameOver();
+                    }
                     return false;
                 }
             }
@@ -1031,6 +1376,7 @@
 
         document.getElementById('score').textContent = gameState.score;
         document.getElementById('speed').textContent = gameState.speed;
+        document.getElementById('lives').textContent = gameState.lives;
         document.getElementById('highScore').textContent = highScores[gameState.difficulty];
         document.getElementById('timeLabel').textContent = timeEnvironments[gameState.timeOfDay].name;
         document.getElementById('locationLabel').textContent = locations[gameState.location].name;
@@ -1109,10 +1455,31 @@
         // 메달 획득
         const medal = getMedal(finalScore);
         
+        // 메달 저장
+        let earnedMedalText = medal.name;
+        if (medal.emoji === '🥇') {
+            gameState.medals.gold++;
+            earnedMedalText = '🥇 금메달 획득!';
+        } else if (medal.emoji === '🥈') {
+            gameState.medals.silver++;
+            earnedMedalText = '🥈 은메달 획득!';
+        } else if (medal.emoji === '🥉') {
+            gameState.medals.bronze++;
+            earnedMedalText = '🥉 동메달 획득!';
+        } else {
+            earnedMedalText = '메달 없음';
+        }
+        
         document.getElementById('finalScore').textContent = finalScore;
         document.getElementById('maxSpeed').textContent = gameState.maxSpeed;
         document.getElementById('finalDifficulty').textContent = difficultySettings[currentDifficulty].name;
         document.getElementById('finalHighScore').textContent = highScores[currentDifficulty];
+        document.getElementById('earnedMedal').textContent = earnedMedalText;
+        
+        // 보유 메달 표시
+        document.getElementById('goldMedals').textContent = gameState.medals.gold;
+        document.getElementById('silverMedals').textContent = gameState.medals.silver;
+        document.getElementById('bronzeMedals').textContent = gameState.medals.bronze;
         
         // 메달 표시
         const medalDisplay = document.getElementById('medalDisplay');
@@ -1124,7 +1491,53 @@
             medalDisplay.style.color = '#888';
         }
         
+        // 목숨 추가 버튼 표시 여부
+        const lifeSelection = document.getElementById('lifeSelection');
+        if (gameState.medals.gold > 0 || gameState.medals.silver > 0 || gameState.medals.bronze > 0) {
+            lifeSelection.style.display = 'block';
+            
+            // 버튼 활성화/비활성화
+            document.getElementById('useGoldBtn').disabled = gameState.medals.gold === 0;
+            document.getElementById('useSilverBtn').disabled = gameState.medals.silver === 0;
+            document.getElementById('useBronzeBtn').disabled = gameState.medals.bronze === 0;
+        } else {
+            lifeSelection.style.display = 'none';
+        }
+        
         document.getElementById('gameOver').style.display = 'block';
+    }
+    
+    // 목숨 추가 함수
+    function addLives(amount) {
+        if (amount === 3 && gameState.medals.gold > 0) {
+            gameState.medals.gold--;
+            gameState.lives = 3;
+            showNotification('🥇 금메달 사용! 목숨 3개로 재시작!');
+        } else if (amount === 2 && gameState.medals.silver > 0) {
+            gameState.medals.silver--;
+            gameState.lives = 3;
+            showNotification('🥈 은메달 사용! 목숨 2개로 재시작!');
+        } else if (amount === 1 && gameState.medals.bronze > 0) {
+            gameState.medals.bronze--;
+            gameState.lives = 3;
+            showNotification('🥉 동메달 사용! 목숨 1개로 재시작!');
+        }
+        
+        // 게임 재시작
+        document.getElementById('gameOver').style.display = 'none';
+        gameState.running = true;
+        gameState.score = 0;
+        gameState.speed = difficultySettings[gameState.difficulty].baseSpeed;
+        obstacles = [];
+        obstacleTimer = 0;
+        player.x = canvas.width / 2 - 25;
+        
+        // 목숨은 메달에 따라 설정됨
+        if (amount === 3) gameState.lives = 3;
+        else if (amount === 2) gameState.lives = 2;
+        else if (amount === 1) gameState.lives = 1;
+        
+        document.getElementById('lives').textContent = gameState.lives;
     }
 
     // 난이도 선택
@@ -1137,6 +1550,10 @@
     // 게임 시작
     function startGame(difficulty) {
         const settings = difficultySettings[difficulty];
+        
+        // 플레이어 차량 색상 랜덤 선택 (민트, 검정, 회색, 하양)
+        const playerColors = ['#00CED1', '#1a1a1a', '#808080', '#ffffff'];
+        player.color = playerColors[Math.floor(Math.random() * playerColors.length)];
         
         gameState = {
             running: true,
@@ -1154,7 +1571,9 @@
             horizontalScroll: 0,
             timeOfDay: 'day',
             location: 'city',
-            cameraAngle: 'normal'
+            cameraAngle: 'normal',
+            lives: 3,
+            medals: gameState.medals || {gold: 0, silver: 0, bronze: 0}
         };
         
         player.x = canvas.width / 2 - 25;
@@ -1166,6 +1585,7 @@
         document.getElementById('turnIndicator').style.display = 'none';
         document.getElementById('difficultyLabel').textContent = '난이도: ' + settings.name;
         document.getElementById('highScore').textContent = highScores[difficulty];
+        document.getElementById('lives').textContent = gameState.lives;
         document.getElementById('timeLabel').textContent = '☀️ 낮';
         document.getElementById('locationLabel').textContent = '🏙️ 도시';
     }
